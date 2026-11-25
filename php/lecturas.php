@@ -36,10 +36,12 @@ try {
     ]);
 
     $consulta = $db->prepare(
-        "INSERT INTO readings (container_id, level, source)
-         SELECT id, :nivel, 'esp32'
+        "INSERT INTO readings (container_id, level, source, is_current)
+         SELECT id, :nivel, 'esp32', true
          FROM containers
          WHERE id = :id
+         ON CONFLICT (container_id) WHERE is_current DO UPDATE SET
+             level = EXCLUDED.level, source = EXCLUDED.source, recorded_at = clock_timestamp()
          RETURNING id"
     );
     $consulta->execute(['nivel' => $nivel, 'id' => $id]);

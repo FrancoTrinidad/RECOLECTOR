@@ -29,7 +29,7 @@ try {
         FROM containers b
         LEFT JOIN LATERAL (
             SELECT level, recorded_at FROM readings
-            WHERE container_id = b.id ORDER BY id DESC LIMIT 1
+            WHERE container_id = b.id AND is_current
         ) latest ON TRUE
         ORDER BY b.id
         SQL;
@@ -63,8 +63,11 @@ try {
     }
 
     if ($collect) {
-        $statement = $db->prepare("INSERT INTO readings (container_id, level, source)
-            SELECT id, 0, 'recoleccion' FROM containers WHERE id = :id RETURNING container_id");
+        $statement = $db->prepare("INSERT INTO readings (container_id, level, source, is_current)
+            SELECT id, 0, 'recoleccion', true FROM containers WHERE id = :id
+            ON CONFLICT (container_id) WHERE is_current DO UPDATE SET
+                level = EXCLUDED.level, source = EXCLUDED.source, recorded_at = clock_timestamp()
+            RETURNING container_id");
         $statement->execute(['id' => $id]);
     } else {
         $statement = $db->prepare('UPDATE containers SET unit = :unit WHERE id = :id RETURNING id');
